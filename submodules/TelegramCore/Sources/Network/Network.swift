@@ -466,6 +466,37 @@ public struct NetworkInitializationArguments {
 private let cloudDataContext = Atomic<CloudDataContext?>(value: nil)
 #endif
 
+private func makeTcpConnectionInterfaceFactory(networkSettings: NetworkSettings?, useBetaFeatures: Bool) -> ((MTTcpConnectionInterfaceDelegate, DispatchQueue) -> MTTcpConnectionInterface)? {
+    if #available(iOS 13.0, macOS 14.0, *), let relaySettings = networkSettings?.encryptedRelaySettings, relaySettings.isValid {
+        return { delegate, delegateQueue in
+            EncryptedRelayTcpConnectionInterface(configuration: relaySettings, delegate: delegate, delegateQueue: delegateQueue)
+        }
+    }
+    
+    let useNetworkFramework: Bool
+    if let customValue = networkSettings?.useNetworkFramework {
+        useNetworkFramework = customValue
+    } else if useBetaFeatures {
+        useNetworkFramework = true
+    } else {
+        useNetworkFramework = false
+    }
+    
+    if useNetworkFramework {
+        if #available(iOS 12.0, macOS 14.0, *) {
+            return { delegate, delegateQueue in
+                NetworkFrameworkTcpConnectionInterface(delegate: delegate, delegateQueue: delegateQueue)
+            }
+        }
+    }
+    
+    return nil
+}
+
+private func configureTcpConnectionInterfaceFactory(context: MTContext, networkSettings: NetworkSettings?, useBetaFeatures: Bool) {
+    context.makeTcpConnectionInterface = makeTcpConnectionInterfaceFactory(networkSettings: networkSettings, useBetaFeatures: useBetaFeatures)
+}
+
 func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializationArguments, supplementary: Bool, datacenterId: Int, keychain: Keychain, basePath: String, testingEnvironment: Bool, languageCode: String?, proxySettings: ProxySettings?, networkSettings: NetworkSettings?, phoneNumber: String?, useRequestTimeoutTimers: Bool, appConfiguration: AppConfiguration) -> Signal<Network, NoError> {
     return Signal { subscriber in
         let queue = Queue()
@@ -509,25 +540,7 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
             let useTempAuthKeys: Bool = true
             let forceLocalDNS: Bool = SGSimpleSettings.shared.localDNSForProxyHost
             let context = MTContext(serialization: serialization, encryptionProvider: arguments.encryptionProvider, apiEnvironment: apiEnvironment, isTestingEnvironment: testingEnvironment, useTempAuthKeys: useTempAuthKeys, forceLocalDNS: forceLocalDNS)
-            
-            if let networkSettings = networkSettings {
-                let useNetworkFramework: Bool
-                if let customValue = networkSettings.useNetworkFramework {
-                    useNetworkFramework = customValue
-                } else if arguments.useBetaFeatures {
-                    useNetworkFramework = true
-                } else {
-                    useNetworkFramework = false
-                }
-                
-                if useNetworkFramework {
-                    if #available(iOS 12.0, macOS 14.0, *) {
-                        context.makeTcpConnectionInterface = { delegate, delegateQueue in
-                            return NetworkFrameworkTcpConnectionInterface(delegate: delegate, delegateQueue: delegateQueue)
-                        }
-                    }
-                }
-            }
+            configureTcpConnectionInterfaceFactory(context: context, networkSettings: networkSettings, useBetaFeatures: arguments.useBetaFeatures)
             
             let seedAddressList: [Int: [String]]
             
@@ -865,6 +878,12 @@ public final class Network: NSObject, MTRequestMessageServiceDelegate {
     
     override public var description: String {
         return "Network context: \(self.context)"
+    }
+    
+    public func updateConnectionInterfaceConfiguration(networkSettings: NetworkSettings?) {
+        self.queue.async {
+            configureTcpConnectionInterfaceFactory(context: self.context, networkSettings: networkSettings, useBetaFeatures: self.useBetaFeatures)
+        }
     }
     
     fileprivate init(queue: Queue, datacenterId: Int, context: MTContext, mtProto: MTProto, requestService: MTRequestMessageService, connectionStatusDelegate: MTProtoConnectionStatusDelegate, _connectionStatus: Promise<ConnectionStatus>, basePath: String, appDataDisposable: Disposable, encryptionProvider: EncryptionProvider, useRequestTimeoutTimers: Bool, useBetaFeatures: Bool, useExperimentalFeatures: Bool) {

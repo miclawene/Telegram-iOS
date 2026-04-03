@@ -647,6 +647,30 @@ func openExternalUrlImpl(context: AccountContext, urlContext: OpenURLContext, ur
                         }).startStandalone()
                         return
                     }
+                case "relayoverride":
+                    let disableRelay = params["disable"] == "1"
+                    let _ = updateNetworkSettingsInteractively(postbox: context.account.postbox, network: context.account.network, { settings in
+                        var settings = settings
+                        if disableRelay {
+                            settings.encryptedRelaySettings = nil
+                        } else if
+                            let host = params["host"],
+                            let portString = params["port"],
+                            let port = Int(portString),
+                            let serverPublicKey = params["serverPublicKey"] ?? params["pubkey"],
+                            port > 0 && port <= Int(UInt16.max)
+                        {
+                            settings.encryptedRelaySettings = EncryptedRelaySettings(
+                                host: host,
+                                port: port,
+                                serverName: params["serverName"],
+                                serverPublicKey: serverPublicKey,
+                                pinnedCertificateHash: params["certSha256"] ?? params["certsha256"]
+                            )
+                        }
+                        return settings
+                    }).startStandalone()
+                    return
                 case "premium_offer":
                     let reference = params["ref"]
                     handleResolvedUrl(.premiumOffer(reference: reference))

@@ -84,3 +84,6 @@ xcode-files
 .bsp/**
 /.claude/
 /buildbox/*
+
+# Auto Claude data directory
+.auto-claude/

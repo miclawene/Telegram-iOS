@@ -17,24 +17,36 @@ extension NetworkSettings {
 }
 
 public func updateNetworkSettingsInteractively(transaction: Transaction, network: Network?, _ f: @escaping (NetworkSettings) -> NetworkSettings) {
-    var updateNetwork = false
+    var updateApiEnvironment = false
+    var updateConnectionInterface = false
     var updatedSettings: NetworkSettings?
     transaction.updatePreferencesEntry(key: PreferencesKeys.networkSettings, { current in
         let previous = current?.get(NetworkSettings.self) ?? NetworkSettings.defaultSettings
         let updated = f(previous)
         updatedSettings = updated
         if updated.reducedBackupDiscoveryTimeout != previous.reducedBackupDiscoveryTimeout {
-            updateNetwork = true
+            updateApiEnvironment = true
         }
         if updated.backupHostOverride != previous.backupHostOverride {
-            updateNetwork = true
+            updateApiEnvironment = true
+        }
+        if updated.useNetworkFramework != previous.useNetworkFramework {
+            updateConnectionInterface = true
+        }
+        if updated.encryptedRelaySettings != previous.encryptedRelaySettings {
+            updateConnectionInterface = true
         }
         return PreferencesEntry(updated)
     })
     
-    if let network = network, updateNetwork, let updatedSettings = updatedSettings {
-        network.context.updateApiEnvironment { current in
-            return current?.withUpdatedNetworkSettings(updatedSettings.mtNetworkSettings)
+    if let network = network, let updatedSettings = updatedSettings {
+        if updateApiEnvironment {
+            network.context.updateApiEnvironment { current in
+                return current?.withUpdatedNetworkSettings(updatedSettings.mtNetworkSettings)
+            }
+        }
+        if updateConnectionInterface {
+            network.updateConnectionInterfaceConfiguration(networkSettings: updatedSettings)
         }
     }
 }

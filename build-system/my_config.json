@@ -1,8 +1,8 @@
 {
-	"bundle_id": "org.93d0104ca1e7f3be.Swiftgram",
-	"api_id": "{! get one at https://my.telegram.org/apps !}",
-	"api_hash": "{! get one at https://my.telegram.org/apps !}",
-	"team_id": "{! check README.md !}",
+	"bundle_id": "org.areezona.Swiftgram",
+	"api_id": "18791955",
+	"api_hash": "84abf9656d9ca071b17f7dcd7c3f925b",
+	"team_id": "A6AHXAYR54",
 	"app_center_id": "0",
 	"is_internal_build": "true",
 	"is_appstore_build": "false",
