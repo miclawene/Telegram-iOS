@@ -50,6 +50,9 @@ export const apiEnvSchema = base
     API_PORT: z.coerce.number().int().positive().default(4000),
     // Backend -> telegram-worker internal control API (Phase 2).
     WORKER_URL: z.string().url().default("http://localhost:4100"),
+    // Exact origin of the deployed web app (e.g. https://myapp.vercel.app) so
+    // CORS + cross-site cookies work between Vercel and Railway.
+    WEB_ORIGIN: z.string().url().optional(),
   });
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 

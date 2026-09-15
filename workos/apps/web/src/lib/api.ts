@@ -1,8 +1,12 @@
 "use client";
 
 import type {
+  Channel,
   ChannelSourceState,
+  Project,
   TelegramConversation,
+  User,
+  Workspace,
 } from "@workos/types";
 
 // Typed client for the Work backend. Cookies carry the session, so every call
@@ -50,7 +54,31 @@ export interface HistoryMessageDTO {
 }
 
 export const api = {
-  me: () => req<{ user: unknown }>("/auth/me"),
+  // Auth (cookie session)
+  me: () => req<{ user: User }>("/auth/me"),
+  register: (email: string, name: string, password: string) =>
+    req<{ user: User }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, name, password }),
+    }),
+  login: (email: string, password: string) =>
+    req<{ user: User }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  logout: () => req<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+
+  // Work metadata
+  workspaces: () => req<{ workspaces: Workspace[] }>("/workspaces"),
+  createWorkspace: (name: string) =>
+    req<{ workspace: Workspace }>("/workspaces", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  projects: (workspaceId: string) =>
+    req<{ projects: Project[] }>(`/projects?workspaceId=${workspaceId}`),
+  channels: (workspaceId: string) =>
+    req<{ channels: Channel[] }>(`/channels?workspaceId=${workspaceId}`),
 
   // Telegram auth (ТЗ §7, §12)
   telegramAccount: () => req<{ account: TelegramAccountDTO | null }>("/telegram/account"),

@@ -22,8 +22,11 @@ export async function buildServer() {
   const app = Fastify({ loggerInstance: logger, trustProxy: true });
 
   // CORS — the web app runs on a different origin (Vercel) and sends cookies.
+  // Any *.vercel.app preview plus the exact WEB_ORIGIN (custom domain) is allowed.
+  const allowedOrigins: (string | RegExp)[] = [/\.vercel\.app$/];
+  if (env.WEB_ORIGIN) allowedOrigins.push(env.WEB_ORIGIN);
   await app.register(cors, {
-    origin: env.NODE_ENV === "development" ? true : [/\.vercel\.app$/],
+    origin: env.NODE_ENV === "development" ? true : allowedOrigins,
     credentials: true,
   });
 

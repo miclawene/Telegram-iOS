@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
+
 import { cn } from "@workos/ui";
 
 import { useUIStore } from "@/lib/store";
-import { workspace } from "@/lib/demo";
+import { useRefreshWorkspace, useWorkspaceData } from "@/lib/live";
+import { api } from "@/lib/api";
 
 // Left rail: workspace switcher + attention navigation (Home / Activity / Threads / Later).
 const NAV = [
@@ -16,15 +19,17 @@ const NAV = [
 export function WorkspaceRail() {
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
+  const data = useWorkspaceData();
+  const refresh = useRefreshWorkspace();
 
   return (
     <nav className="flex h-full w-[240px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2 px-4 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent font-bold text-accent-fg">
-          C
+          {data.workspace.name.charAt(0).toUpperCase()}
         </div>
         <span className="truncate text-sm font-semibold uppercase tracking-wide">
-          {workspace.name}
+          {data.workspace.name}
         </span>
       </div>
 
@@ -45,8 +50,23 @@ export function WorkspaceRail() {
         ))}
       </ul>
 
-      <div className="mt-auto flex items-center justify-between px-4 py-3 text-xs text-muted">
-        <span>Demo workspace</span>
+      <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3 text-xs text-muted">
+        {data.mode === "live" && data.user ? (
+          <button
+            type="button"
+            onClick={() => {
+              void api.logout().then(() => refresh());
+            }}
+            className="truncate hover:text-text"
+            title={data.user.email}
+          >
+            {data.user.name} · Sign out
+          </button>
+        ) : (
+          <Link href="/login" className="hover:text-text">
+            Demo · Sign in
+          </Link>
+        )}
         <button
           type="button"
           onClick={toggleTheme}

@@ -29,10 +29,12 @@ const loginBody = z.object({
 });
 
 function setSessionCookie(reply: import("fastify").FastifyReply, token: string) {
+  // In production the web app (Vercel) and API (Railway) are different sites,
+  // so the session cookie must be SameSite=None; Secure to be sent cross-site.
   reply.setCookie(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: isProd,
-    sameSite: "lax",
+    sameSite: isProd ? "none" : "lax",
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });

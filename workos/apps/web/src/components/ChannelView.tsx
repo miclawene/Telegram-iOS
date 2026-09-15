@@ -7,6 +7,7 @@ import type { Message } from "@workos/types";
 
 import { useUIStore } from "@/lib/store";
 import { channel, messagesForChannel, project } from "@/lib/demo";
+import { useWorkspaceData } from "@/lib/live";
 import { Avatar } from "./Avatar";
 import { LiveChannelView, isDemoChannel } from "./LiveChannelView";
 
@@ -32,6 +33,7 @@ export function ChannelView() {
   const activeChannelId = useUIStore((s) => s.activeChannelId);
   const openThread = useUIStore((s) => s.openThread);
   const [draft, setDraft] = useState("");
+  const live = useWorkspaceData();
 
   const ch = activeChannelId ? channel(activeChannelId) : undefined;
   const proj = ch?.projectId ? project(ch.projectId) : undefined;
@@ -42,11 +44,15 @@ export function ChannelView() {
 
   // Real (non-demo) channels load live Telegram history via the backend.
   if (activeChannelId && !isDemoChannel(activeChannelId)) {
+    const liveCh = live.channel(activeChannelId);
+    const liveProj = liveCh?.projectId ? live.project(liveCh.projectId) : undefined;
     return (
       <section className="flex h-full flex-1 flex-col bg-bg">
         <header className="flex items-center gap-2 border-b border-border px-5 py-3">
-          <span className="text-lg font-semibold text-text">Channel</span>
-          <span className="text-sm text-muted">· Telegram</span>
+          <span className="text-lg font-semibold text-text">
+            <span className="text-muted">#</span> {liveCh?.name ?? "channel"}
+          </span>
+          {liveProj && <span className="text-sm text-muted">· {liveProj.name}</span>}
         </header>
         <LiveChannelView channelId={activeChannelId} />
       </section>
