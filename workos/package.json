@@ -1,0 +1,28 @@
+{
+  "name": "telegram-workos",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.9.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @workos/database db:generate",
+    "db:migrate": "pnpm --filter @workos/database db:migrate",
+    "db:push": "pnpm --filter @workos/database db:push",
+    "db:seed": "pnpm --filter @workos/database db:seed",
+    "dev:infra": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:infra:down": "docker compose -f docker-compose.dev.yml down"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "prettier": "^3.4.2"
+  }
+}

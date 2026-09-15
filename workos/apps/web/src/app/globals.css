@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light theme (default) */
+:root {
+  --bg: 255 255 255;
+  --surface: 248 250 252;
+  --surface-2: 241 245 249;
+  --border: 226 232 240;
+  --text: 15 23 42;
+  --muted: 100 116 139;
+  --accent: 37 99 235;
+  --accent-fg: 255 255 255;
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* Dark theme */
+.dark {
+  --bg: 15 18 24;
+  --surface: 20 24 33;
+  --surface-2: 30 36 48;
+  --border: 42 50 66;
+  --text: 226 232 240;
+  --muted: 148 163 184;
+  --accent: 96 165 250;
+  --accent-fg: 8 12 20;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Slim scrollbars for the dense workspace layout */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 4px;
+}

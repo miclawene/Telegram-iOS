@@ -1,0 +1,32 @@
+{
+  "name": "@workos/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@workos/tsconfig": "workspace:*",
+    "@workos/eslint-config": "workspace:*",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3",
+    "eslint": "^8.57.1"
+  }
+}

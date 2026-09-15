@@ -1,0 +1,39 @@
+{
+  "name": "@workos/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "node --test --import tsx ./src/**/*.test.ts || true",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "@workos/config": "workspace:*",
+    "@workos/database": "workspace:*",
+    "@workos/types": "workspace:*",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.2",
+    "@fastify/websocket": "^11.0.2",
+    "drizzle-orm": "^0.38.3",
+    "fastify": "^5.2.1",
+    "fastify-plugin": "^5.0.1",
+    "ioredis": "^5.4.2",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@workos/tsconfig": "workspace:*",
+    "@workos/eslint-config": "workspace:*",
+    "@types/node": "^22.10.5",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "eslint": "^8.57.1"
+  }
+}
