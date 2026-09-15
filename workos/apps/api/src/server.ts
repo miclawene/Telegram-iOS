@@ -12,6 +12,8 @@ import { authRoutes } from "./routes/auth.js";
 import { workspaceRoutes } from "./routes/workspaces.js";
 import { projectRoutes } from "./routes/projects.js";
 import { channelRoutes } from "./routes/channels.js";
+import { telegramRoutes } from "./routes/telegram.js";
+import { messageRoutes } from "./routes/messages.js";
 import { wsRoutes } from "./routes/ws.js";
 import { internalRoutes } from "./routes/internal.js";
 import { placeholderRoutes } from "./routes/placeholders.js";
@@ -41,6 +43,8 @@ export async function buildServer() {
   await app.register(workspaceRoutes);
   await app.register(projectRoutes);
   await app.register(channelRoutes);
+  await app.register(telegramRoutes);
+  await app.register(messageRoutes);
   await app.register(wsRoutes);
   await app.register(internalRoutes);
   await app.register(placeholderRoutes);

@@ -93,6 +93,9 @@ importers:
       '@workos/types':
         specifier: workspace:*
         version: link:../../packages/types
+      drizzle-orm:
+        specifier: ^0.38.3
+        version: 0.38.4(@types/react@19.3.0)(postgres@3.4.9)(react@19.3.0)
       fastify:
         specifier: ^5.2.1
         version: 5.12.4
@@ -292,6 +295,9 @@ importers:
       eslint:
         specifier: ^8.57.1
         version: 8.57.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.13
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

@@ -48,11 +48,14 @@ export const apiEnvSchema = base
   .merge(internalSchema)
   .extend({
     API_PORT: z.coerce.number().int().positive().default(4000),
+    // Backend -> telegram-worker internal control API (Phase 2).
+    WORKER_URL: z.string().url().default("http://localhost:4100"),
   });
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 
 // ─── Telegram worker env ──────────────────────────────────────────────────────
 export const workerEnvSchema = base
+  .merge(databaseSchema)
   .merge(redisSchema)
   .merge(encryptionSchema)
   .merge(telegramSchema)

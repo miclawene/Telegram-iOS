@@ -39,10 +39,29 @@ scaffolded with a stable API surface (see `apps/api/src/routes/placeholders.ts`)
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 1 | Monorepo, database, auth, workspace/project/channel, demo UI, PWA | ✅ Implemented |
-| 2 | Telegram auth, chats, import, message history | 🔜 Scaffolded (adapter + routes 501) |
-| 3 | Realtime send, reply, threads | 🔜 Hub + WS live; send pending |
+| 2 | Telegram auth, chats, import (peer↔channel mapping), history, send/reply, realtime | ✅ Implemented |
+| 3 | Reactions, full threads | 🔜 Reply live; reactions 501 |
 | 4 | Tasks, activity, saved items, files | 🔜 Schema ready; routes 501 |
 | 5 | PWA polish, IndexedDB, Railway/Vercel, security review | 🟡 PWA + IndexedDB in place |
+
+### Phase 2 — how Telegram is wired
+
+The `telegram-worker` is the Telegram boundary (the web analog of the native
+TelegramEngine/Postbox): it owns the GramJS session, encrypts it before storing
+in Postgres, and exposes an **internal control API** (guarded by
+`API_INTERNAL_SECRET`, never browser-facing). The backend calls that API and
+maps Telegram peers onto Work channels — it never touches MTProto or sees the
+plaintext session (ТЗ §2, §29).
+
+- **Identity = accountId + peerId**, never the chat title, and multi-account
+  safe (`telegram_chat_sources`, helpers in `@workos/types`).
+- **Import** (`POST /telegram/import`) binds a chosen peer to a new Work Channel
+  whose name is independent of the Telegram title. Removing a Work channel never
+  touches the Telegram chat (ТЗ §24).
+- **History** loads live on channel open (`GET /channels/:id/messages`) — no
+  message duplication (ТЗ §42). Unavailable sources render a state, not a crash.
+- **Send/reply** go backend → worker → Telegram; **incoming** updates flow
+  worker → `/internal/events` → peer→channel map → `publishRealtime` → web WS.
 
 ## Quick start (local, ~10 minutes)
 

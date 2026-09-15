@@ -6,6 +6,10 @@ import { schema } from "@workos/database";
 
 import { db } from "../db.js";
 import { getMembership, roleAtLeast } from "../auth/membership.js";
+import { getChannelHistory } from "../telegram/history.js";
+import { getChannelSource } from "../telegram/sourceMapping.js";
+import { workerClient } from "../telegram/workerClient.js";
+import { publishRealtime } from "../realtime/hub.js";
 
 const slugify = (s: string) =>
   s
@@ -93,39 +97,76 @@ export const channelRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /channels/:id/messages
-  // Phase 1: returns cached messages (empty until Telegram sync in Phase 2).
+  // Phase 2: loads live Telegram history through the worker on open (ТЗ §13),
+  // and returns a source state so the UI can render unavailable states (ТЗ §22).
   app.get("/channels/:id/messages", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const q = z
+      .object({ limit: z.coerce.number().int().positive().max(100).optional(), beforeId: z.string().optional() })
+      .safeParse(req.query);
+
+    const workspaceId = await channelWorkspace(id);
+    if (!workspaceId) return reply.code(404).send({ error: "Not found" });
+    const role = await getMembership(req.user!.id, workspaceId);
+    if (!role) return reply.code(403).send({ error: "Forbidden" });
+
+    const history = await getChannelHistory(id, q.success ? q.data : {});
+    return reply.send({
+      state: history.state,
+      messages: history.messages,
+    });
+  });
+
+  // POST /channels/:id/messages — send (or reply) via Telegram (ТЗ §16, §17).
+  const sendBody = z.object({
+    text: z.string().min(1).max(4096),
+    replyToMessageId: z.string().optional(),
+  });
+  app.post("/channels/:id/messages", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = sendBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+
+    const workspaceId = await channelWorkspace(id);
+    if (!workspaceId) return reply.code(404).send({ error: "Not found" });
+    const role = await getMembership(req.user!.id, workspaceId);
+    if (!role || !roleAtLeast(role, "member")) {
+      return reply.code(403).send({ error: "Forbidden" });
+    }
+
+    const source = await getChannelSource(id);
+    if (!source) return reply.code(409).send({ error: "Channel has no Telegram source" });
+
+    const result = await workerClient.send(
+      source.accountId,
+      source.peerId,
+      parsed.data.text,
+      parsed.data.replyToMessageId,
+    );
+    if (!result.ok) {
+      return reply.code(result.status === 503 ? 503 : 502).send({
+        error: "Could not send message",
+      });
+    }
+
+    // Optimistic realtime echo so other Work clients update without reload.
+    await publishRealtime({
+      type: "message.created",
+      workspaceId,
+      channelId: id,
+      data: result.data.message,
+      timestamp: new Date().toISOString(),
+    });
+
+    return reply.code(201).send({ message: result.data.message });
+  });
+
+  async function channelWorkspace(channelId: string): Promise<string | null> {
     const rows = await db
       .select({ workspaceId: schema.channels.workspaceId })
       .from(schema.channels)
-      .where(eq(schema.channels.id, id))
+      .where(eq(schema.channels.id, channelId))
       .limit(1);
-    if (!rows[0]) return reply.code(404).send({ error: "Not found" });
-
-    const role = await getMembership(req.user!.id, rows[0].workspaceId);
-    if (!role) return reply.code(403).send({ error: "Forbidden" });
-
-    const messages = await db
-      .select({
-        id: schema.messageMetadata.id,
-        telegramMessageId: schema.messageMetadata.telegramMessageId,
-        senderTelegramUserId: schema.messageMetadata.senderTelegramUserId,
-        replyToMessageId: schema.messageMetadata.replyToMessageId,
-        date: schema.messageMetadata.date,
-        classification: schema.messageMetadata.classification,
-        requiresResponse: schema.messageMetadata.requiresResponse,
-        text: schema.messageCache.text,
-      })
-      .from(schema.messageMetadata)
-      .leftJoin(
-        schema.messageCache,
-        eq(schema.messageCache.messageMetadataId, schema.messageMetadata.id),
-      )
-      .where(eq(schema.messageMetadata.channelId, id))
-      .orderBy(schema.messageMetadata.date)
-      .limit(100);
-
-    return reply.send({ messages });
-  });
+    return rows[0]?.workspaceId ?? null;
+  }
 };

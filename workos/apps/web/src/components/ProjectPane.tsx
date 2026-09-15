@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
+
 import { cn } from "@workos/ui";
 
 import { useUIStore } from "@/lib/store";
-import { channelsForProject, dmUsers, projects } from "@/lib/demo";
+import { channelsForProject, dmUsers, projects, workspace } from "@/lib/demo";
 import { Avatar } from "./Avatar";
+import { AddTelegramChannel } from "./AddTelegramChannel";
 
 // Middle column: the project + channel tree, and DMs. This is where the user
 // feels Workspace → Project → Channel rather than a flat Telegram chat list.
@@ -13,12 +16,30 @@ export function ProjectPane() {
   const activeChannelId = useUIStore((s) => s.activeChannelId);
   const selectProject = useUIStore((s) => s.selectProject);
   const selectChannel = useUIStore((s) => s.selectChannel);
+  const [showAdd, setShowAdd] = useState(false);
 
   return (
     <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-surface md:w-[240px]">
-      <div className="px-4 py-4 text-xs font-semibold uppercase tracking-wider text-muted">
-        Projects
+      <div className="flex items-center justify-between px-4 py-4">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+          Projects
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="rounded-md border border-border px-1.5 py-0.5 text-xs text-muted hover:bg-surface-2 hover:text-text"
+          title="Add Telegram Channel"
+        >
+          + Add
+        </button>
       </div>
+
+      {showAdd && (
+        <AddTelegramChannel
+          workspaceId={workspace.id}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
 
       <div className="flex-1 overflow-y-auto px-2">
         {projects.map((p) => {

@@ -17,6 +17,7 @@
     "@workos/database": "workspace:*",
     "@workos/telegram": "workspace:*",
     "@workos/types": "workspace:*",
+    "drizzle-orm": "^0.38.3",
     "fastify": "^5.2.1",
     "ioredis": "^5.4.2",
     "pino": "^9.6.0"

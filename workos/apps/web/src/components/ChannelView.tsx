@@ -8,6 +8,7 @@ import type { Message } from "@workos/types";
 import { useUIStore } from "@/lib/store";
 import { channel, messagesForChannel, project } from "@/lib/demo";
 import { Avatar } from "./Avatar";
+import { LiveChannelView, isDemoChannel } from "./LiveChannelView";
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -38,6 +39,19 @@ export function ChannelView() {
     () => (activeChannelId ? groupBySender(messagesForChannel(activeChannelId)) : []),
     [activeChannelId],
   );
+
+  // Real (non-demo) channels load live Telegram history via the backend.
+  if (activeChannelId && !isDemoChannel(activeChannelId)) {
+    return (
+      <section className="flex h-full flex-1 flex-col bg-bg">
+        <header className="flex items-center gap-2 border-b border-border px-5 py-3">
+          <span className="text-lg font-semibold text-text">Channel</span>
+          <span className="text-sm text-muted">· Telegram</span>
+        </header>
+        <LiveChannelView channelId={activeChannelId} />
+      </section>
+    );
+  }
 
   if (!ch) {
     return (
