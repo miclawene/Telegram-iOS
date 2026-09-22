@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { TelegramConversation } from "@workos/types";
 
 import { api, ApiError, type TelegramAccountDTO } from "@/lib/api";
+import { useWorkspaceData } from "@/lib/live";
 import { Avatar } from "./Avatar";
 
 type Step = "connect" | "code" | "twofa" | "select" | "configure";
@@ -29,7 +30,10 @@ export function AddTelegramChannel({
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<TelegramConversation | null>(null);
   const [projectName, setProjectName] = useState("");
+  // "" = create a new project; otherwise an existing project id (ТЗ §10).
+  const [projectChoice, setProjectChoice] = useState("");
   const [channelName, setChannelName] = useState("");
+  const { projects } = useWorkspaceData();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -188,7 +192,8 @@ export function AddTelegramChannel({
                 void run(async () => {
                   const { channel } = await api.importChannel({
                     workspaceId,
-                    newProjectName: projectName || undefined,
+                    projectId: projectChoice || undefined,
+                    newProjectName: projectChoice ? undefined : projectName || picked.title,
                     channelName: channelName || picked.title,
                     peerId: picked.peerId,
                     chatType: picked.chatType,
@@ -204,9 +209,25 @@ export function AddTelegramChannel({
                 <span className="text-muted">Telegram source: </span>
                 {picked.title}
               </div>
-              <Field label="Project (new)">
-                <input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Ha'il Airport" className={inputCls} />
+              <Field label="Project">
+                <select
+                  value={projectChoice}
+                  onChange={(e) => setProjectChoice(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">New project…</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </Field>
+              {!projectChoice && (
+                <Field label="New project name">
+                  <input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Ha'il Airport" className={inputCls} />
+                </Field>
+              )}
               <Field label="Channel name">
                 <input value={channelName} onChange={(e) => setChannelName(e.target.value)} placeholder="general" className={inputCls} />
               </Field>

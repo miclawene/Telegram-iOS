@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { schema } from "@workos/database";
@@ -170,21 +170,34 @@ export const telegramRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(409).send({ error: "Telegram account not connected" });
     }
 
-    // Resolve or create the project.
+    // Resolve or create the project. A new-project name that matches an
+    // existing project's slug reuses it, so adding several chats under the
+    // same project name never trips the (workspace, slug) unique index.
     let projectId = input.projectId ?? null;
     if (!projectId) {
       if (!input.newProjectName) {
         return reply.code(400).send({ error: "projectId or newProjectName required" });
       }
-      const [project] = await db
-        .insert(schema.projects)
-        .values({
-          workspaceId: input.workspaceId,
-          name: input.newProjectName,
-          slug: slugify(input.newProjectName),
-        })
-        .returning();
-      projectId = project!.id;
+      const slug = slugify(input.newProjectName);
+      const existing = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.workspaceId, input.workspaceId),
+            eq(schema.projects.slug, slug),
+          ),
+        )
+        .limit(1);
+      if (existing[0]) {
+        projectId = existing[0].id;
+      } else {
+        const [project] = await db
+          .insert(schema.projects)
+          .values({ workspaceId: input.workspaceId, name: input.newProjectName, slug })
+          .returning();
+        projectId = project!.id;
+      }
     }
 
     // Upsert the telegram_chat_source (accountId + peerId is the identity).
