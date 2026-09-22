@@ -13,18 +13,19 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import {
-  CHANNEL_SOURCE_TYPES,
-  CHANNEL_TYPES,
-  MESSAGE_CLASSIFICATIONS,
-  PROJECT_STATUSES,
-  TASK_PRIORITIES,
-  TASK_SOURCE_TYPES,
-  TASK_STATUSES,
-  TELEGRAM_ACCOUNT_STATUSES,
-  TELEGRAM_CHAT_TYPES,
-  WORKSPACE_ROLES,
-} from "@workos/types";
+// Enum values are defined here (not imported from @workos/types) because
+// drizzle-kit loads this file through a CJS require hook, and @workos/types
+// ships ESM-only exports. Keep these in sync with packages/types/src/enums.ts.
+const WORKSPACE_ROLES = ["owner", "admin", "member", "viewer"] as const;
+const PROJECT_STATUSES = ["active", "archived"] as const;
+const CHANNEL_TYPES = ["telegram", "virtual"] as const;
+const TELEGRAM_CHAT_TYPES = ["private", "group", "supergroup", "channel"] as const;
+const CHANNEL_SOURCE_TYPES = ["telegram_chat", "telegram_topic", "telegram_filter"] as const;
+const TELEGRAM_ACCOUNT_STATUSES = ["pending", "connected", "disconnected", "error"] as const;
+const MESSAGE_CLASSIFICATIONS = ["mention", "dm", "reply", "file", "normal"] as const;
+const TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const;
+const TASK_PRIORITIES = ["low", "normal", "high", "urgent"] as const;
+const TASK_SOURCE_TYPES = ["telegram_message", "manual"] as const;
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
