@@ -13,7 +13,9 @@ import type {
 // uses credentials: "include". The frontend never talks to Telegram directly
 // (ТЗ §2) — all Telegram access is via these backend endpoints.
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Same-origin path proxied to the backend by next.config rewrites, so the
+// session cookie is first-party in every browser.
+const API_URL = "/api";
 
 export class ApiError extends Error {
   constructor(

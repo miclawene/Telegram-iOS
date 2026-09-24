@@ -24,9 +24,19 @@ export default function LoginPage() {
     setError(null);
     try {
       if (mode === "register") {
-        await api.register(email, name, password);
-        // First workspace so the app has somewhere to land.
-        await api.createWorkspace(`${name || "My"} Workspace`);
+        try {
+          await api.register(email, name, password);
+        } catch (err) {
+          // Account already exists (e.g. an earlier attempt registered but the
+          // session cookie was rejected) — just sign in with the same credentials.
+          if (!(err instanceof ApiError && err.status === 409)) throw err;
+          await api.login(email, password);
+        }
+        // Make sure there is a workspace to land in.
+        const { workspaces } = await api.workspaces();
+        if (workspaces.length === 0) {
+          await api.createWorkspace(`${name || "My"} Workspace`);
+        }
       } else {
         await api.login(email, password);
       }
