@@ -26,7 +26,7 @@ export async function getChannelHistory(
   channelId: string,
   params: { limit?: number; beforeId?: string } = {},
 ): Promise<ChannelHistory> {
-  const source = await getChannelSource(channelId);
+  const source = await getChannelSource(channelId).catch(() => null);
   if (!source) {
     return { state: "no_source", source: null, messages: [] };
   }

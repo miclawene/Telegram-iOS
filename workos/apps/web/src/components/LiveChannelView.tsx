@@ -21,10 +21,11 @@ export function LiveChannelView({ channelId }: { channelId: string }) {
   const [draft, setDraft] = useState("");
   const openThread = useUIStore((s) => s.openThread);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["channel-messages", channelId],
     queryFn: () => api.messages(channelId),
     refetchInterval: 15_000,
+    retry: 1,
   });
 
   const send = useMutation({
@@ -39,11 +40,20 @@ export function LiveChannelView({ channelId }: { channelId: string }) {
     return <CenterNote title="Loading…" subtitle="Fetching Telegram history." />;
   }
   if (isError) {
+    const detail = error instanceof Error ? error.message : String(error);
     return (
-      <CenterNote
-        title="Couldn't load this channel"
-        subtitle="The Work backend or Telegram service is unavailable."
-      />
+      <section className="flex h-full flex-1 items-center justify-center bg-bg text-center">
+        <div className="max-w-md px-6">
+          <p className="text-lg font-medium">Couldn&apos;t load this channel</p>
+          <p className="mt-1 break-words text-sm text-muted">{detail}</p>
+          <button
+            onClick={() => void refetch()}
+            className="mt-4 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface-2"
+          >
+            Retry
+          </button>
+        </div>
+      </section>
     );
   }
 
