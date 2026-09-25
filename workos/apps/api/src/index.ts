@@ -1,8 +1,10 @@
 import { buildServer } from "./server.js";
 import { env } from "./env.js";
 import { logger } from "./logger.js";
+import { ensureSchema } from "./schema-guard.js";
 
 async function main() {
+  await ensureSchema();
   const app = await buildServer();
 
   const shutdown = async (signal: string) => {
