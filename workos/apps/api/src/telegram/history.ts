@@ -31,7 +31,10 @@ export async function getChannelHistory(
     return { state: "no_source", source: null, messages: [] };
   }
 
-  const result = await workerClient.getMessages(source.accountId, source.peerId, params);
+  const result = await workerClient.getMessages(source.accountId, source.peerId, {
+    ...params,
+    topicId: source.topicId ?? undefined,
+  });
   if (!result.ok) {
     // Distinguish "account not connected" from other failures for the UI.
     const accountLoggedOut = result.status === 409 || result.status === 503;

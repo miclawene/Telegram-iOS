@@ -11,10 +11,19 @@ export interface WorkTelegramMessageReference {
 }
 
 // The Telegram-specific source payload stored against a channel.
+// topicId is set when the channel maps to one forum topic of a supergroup
+// (supergroup = project, each topic = a channel/thread inside it).
 export interface TelegramChannelSource {
   type: "telegram";
   accountId: string;
   peerId: string;
+  topicId?: string | null;
+}
+
+// One forum topic of a supergroup, as offered in the import flow.
+export interface TelegramForumTopic {
+  id: string;
+  title: string;
 }
 
 // Discriminated union so email/calendar/other sources can be added later
@@ -41,6 +50,9 @@ export interface TelegramConversation {
   title: string;
   username: string | null;
   chatType: "private" | "group" | "supergroup" | "channel";
+  // True for a supergroup that has topics enabled (a forum). Such a peer can be
+  // imported as a whole project with one channel per topic.
+  isForum?: boolean;
   // Optional presentation extras (may be absent depending on peer).
   lastMessagePreview?: string | null;
   unreadCount?: number;

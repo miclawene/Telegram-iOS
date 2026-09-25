@@ -33,6 +33,7 @@ export function AddTelegramChannel({
   // "" = create a new project; otherwise an existing project id (ТЗ §10).
   const [projectChoice, setProjectChoice] = useState("");
   const [channelName, setChannelName] = useState("");
+  const [topics, setTopics] = useState<{ id: string; title: string }[] | null>(null);
   const { projects } = useWorkspaceData();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -165,7 +166,16 @@ export function AddTelegramChannel({
                       onClick={() => {
                         setPicked(c);
                         setChannelName(c.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24));
+                        setProjectName(c.title);
+                        setTopics(null);
                         setStep("configure");
+                        // Forum supergroup: load its topics (each becomes a channel).
+                        if (c.isForum) {
+                          void run(async () => {
+                            const { topics } = await api.topics(c.peerId);
+                            setTopics(topics);
+                          });
+                        }
                       }}
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-surface-2"
                     >
@@ -185,7 +195,58 @@ export function AddTelegramChannel({
             </div>
           )}
 
-          {step === "configure" && picked && (
+          {/* Forum supergroup -> import as a whole project, topics become channels. */}
+          {step === "configure" && picked?.isForum && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void run(async () => {
+                  await api.importForum({
+                    workspaceId,
+                    peerId: picked.peerId,
+                    title: picked.title,
+                    projectName: projectName || picked.title,
+                  });
+                  onAdded?.("");
+                  onClose();
+                });
+              }}
+              className="space-y-3"
+            >
+              <div className="rounded-md bg-surface-2 px-3 py-2 text-sm">
+                <span className="text-muted">Supergroup: </span>
+                {picked.title}
+              </div>
+              <Field label="Project name">
+                <input value={projectName} onChange={(e) => setProjectName(e.target.value)} className={inputCls} />
+              </Field>
+              <div className="text-xs text-muted">
+                {topics === null ? (
+                  "Loading topics…"
+                ) : topics.length === 0 ? (
+                  "This supergroup has no topics."
+                ) : (
+                  <>
+                    <span className="block mb-1">
+                      {topics.length} topic{topics.length === 1 ? "" : "s"} become channels:
+                    </span>
+                    <ul className="max-h-40 space-y-0.5 overflow-y-auto">
+                      {topics.map((t) => (
+                        <li key={t.id} className="text-text">
+                          # {t.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+              <PrimaryButton disabled={busy || !projectName || !topics || topics.length === 0}>
+                Create project
+              </PrimaryButton>
+            </form>
+          )}
+
+          {step === "configure" && picked && !picked.isForum && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();

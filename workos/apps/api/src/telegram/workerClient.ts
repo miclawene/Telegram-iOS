@@ -61,24 +61,43 @@ export const workerClient = {
     );
   },
 
+  getTopics(accountId: string, peerId: string) {
+    return workerFetch<{ topics: { id: string; title: string }[] }>(
+      `/accounts/${accountId}/peers/${peerId}/topics`,
+    );
+  },
+
   getMessages(
     accountId: string,
     peerId: string,
-    params: { limit?: number; beforeId?: string } = {},
+    params: { limit?: number; beforeId?: string; topicId?: string } = {},
   ) {
     const qs = new URLSearchParams();
     if (params.limit) qs.set("limit", String(params.limit));
     if (params.beforeId) qs.set("beforeId", params.beforeId);
+    if (params.topicId) qs.set("topicId", params.topicId);
     const suffix = qs.toString() ? `?${qs}` : "";
     return workerFetch<{ messages: WorkerMessage[] }>(
       `/accounts/${accountId}/peers/${peerId}/messages${suffix}`,
     );
   },
 
-  send(accountId: string, peerId: string, text: string, replyToMessageId?: string) {
+  send(
+    accountId: string,
+    peerId: string,
+    text: string,
+    opts: { replyToMessageId?: string; topicId?: string } = {},
+  ) {
     return workerFetch<{ message: WorkerMessage }>(
       `/accounts/${accountId}/peers/${peerId}/messages`,
-      { method: "POST", body: JSON.stringify({ text, replyToMessageId }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          text,
+          replyToMessageId: opts.replyToMessageId,
+          topicId: opts.topicId,
+        }),
+      },
     );
   },
 

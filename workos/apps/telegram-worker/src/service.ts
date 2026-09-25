@@ -94,14 +94,21 @@ export class TelegramService {
       title: c.title,
       username: c.username ?? null,
       chatType: c.type,
+      isForum: c.isForum ?? false,
     }));
+  }
+
+  // Topics of a forum supergroup (supergroup = project, topic = channel).
+  async getTopics(accountId: string, peerId: string) {
+    const adapter = this.requireAdapter(accountId);
+    return adapter.getForumTopics(peerId);
   }
 
   // ── History (load on open — ТЗ §13, §41) ──────────────────────────────────
   async getMessages(
     accountId: string,
     peerId: string,
-    params: { limit?: number; beforeMessageId?: string },
+    params: { limit?: number; beforeMessageId?: string; topicId?: string },
   ): Promise<TelegramMessage[]> {
     const adapter = this.requireAdapter(accountId);
     return adapter.getMessages(peerId, params);
@@ -113,11 +120,13 @@ export class TelegramService {
     peerId: string,
     text: string,
     replyToMessageId?: string,
+    topicId?: string,
   ): Promise<TelegramMessage> {
     const adapter = this.requireAdapter(accountId);
+    // A reply targets a specific message; otherwise post into the topic (if any).
     return replyToMessageId
       ? adapter.sendReply(peerId, replyToMessageId, text)
-      : adapter.sendMessage(peerId, text);
+      : adapter.sendMessage(peerId, text, topicId);
   }
 
   // ── Source resolution (ТЗ §21, §22) ───────────────────────────────────────

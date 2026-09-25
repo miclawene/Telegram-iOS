@@ -246,4 +246,127 @@ export const telegramRoutes: FastifyPluginAsync = async (app) => {
       source: { type: "telegram", accountId: account.id, peerId: input.peerId },
     });
   });
+
+  // Preview a forum supergroup's topics before importing (ТЗ §8).
+  app.get("/telegram/topics", async (req, reply) => {
+    const q = z.object({ peerId: z.string().min(1) }).safeParse(req.query);
+    if (!q.success) return reply.code(400).send({ error: "peerId required" });
+    const account = await connectedAccount(req.user!.id);
+    if (!account) return reply.code(409).send({ error: "Telegram account not connected" });
+
+    const result = await workerClient.getTopics(account.id, q.data.peerId);
+    if (!result.ok) {
+      return reply.code(result.status === 503 ? 503 : 502).send({
+        error: "Could not load topics",
+      });
+    }
+    return reply.send({ topics: result.data.topics });
+  });
+
+  // Import a forum supergroup as a whole PROJECT, one channel per topic:
+  // supergroup = project, each topic = a channel/thread inside it.
+  const importForumBody = z.object({
+    workspaceId: z.string().uuid(),
+    peerId: z.string().min(1),
+    title: z.string().min(1).max(200),
+    projectName: z.string().min(1).max(120).optional(),
+  });
+
+  app.post("/telegram/import-forum", async (req, reply) => {
+    const parsed = importForumBody.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid input" });
+    const input = parsed.data;
+
+    const role = await getMembership(req.user!.id, input.workspaceId);
+    if (!role || !roleAtLeast(role, "member")) {
+      return reply.code(403).send({ error: "Forbidden" });
+    }
+    const account = await connectedAccount(req.user!.id);
+    if (!account) return reply.code(409).send({ error: "Telegram account not connected" });
+
+    const topicsRes = await workerClient.getTopics(account.id, input.peerId);
+    if (!topicsRes.ok) {
+      return reply.code(topicsRes.status === 503 ? 503 : 502).send({
+        error: "Could not load topics",
+      });
+    }
+    const topics = topicsRes.data.topics;
+    if (topics.length === 0) {
+      return reply.code(422).send({ error: "This supergroup has no topics" });
+    }
+
+    // Project named after the supergroup (reusing an existing slug match).
+    const projectName = input.projectName ?? input.title;
+    const slug = slugify(projectName);
+    const existingProject = await db
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(and(eq(schema.projects.workspaceId, input.workspaceId), eq(schema.projects.slug, slug)))
+      .limit(1);
+    const projectId =
+      existingProject[0]?.id ??
+      (
+        await db
+          .insert(schema.projects)
+          .values({ workspaceId: input.workspaceId, name: projectName, slug })
+          .returning()
+      )[0]!.id;
+
+    // One chat source for the whole supergroup.
+    const [chatSource] = await db
+      .insert(schema.telegramChatSources)
+      .values({
+        telegramAccountId: account.id,
+        telegramChatId: BigInt(input.peerId),
+        chatType: "supergroup",
+        title: input.title,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.telegramChatSources.telegramAccountId,
+          schema.telegramChatSources.telegramChatId,
+        ],
+        set: { title: input.title, updatedAt: new Date() },
+      })
+      .returning();
+
+    // One channel per topic, each scoped to its topic id.
+    const created: { id: string; name: string }[] = [];
+    for (const topic of topics) {
+      const [channel] = await db
+        .insert(schema.channels)
+        .values({
+          workspaceId: input.workspaceId,
+          projectId,
+          name: topic.title.replace(/^#/, ""),
+          slug: slugify(topic.title) + "-" + topic.id,
+          type: "telegram",
+        })
+        .returning();
+      await db.insert(schema.channelSources).values({
+        channelId: channel!.id,
+        telegramChatSourceId: chatSource!.id,
+        sourceType: "telegram_topic",
+        telegramTopicId: BigInt(topic.id),
+      });
+      created.push({ id: channel!.id, name: channel!.name });
+    }
+
+    logger.info(
+      { projectId, accountId: account.id, topics: created.length },
+      "Forum supergroup imported as project",
+    );
+    return reply.code(201).send({ projectId, channels: created });
+  });
+
+  // Resolve the user's connected Telegram account (or null).
+  async function connectedAccount(userId: string) {
+    const rows = await db
+      .select({ id: schema.telegramAccounts.id, status: schema.telegramAccounts.status })
+      .from(schema.telegramAccounts)
+      .where(eq(schema.telegramAccounts.userId, userId))
+      .limit(1);
+    const account = rows[0];
+    return account && account.status === "connected" ? account : null;
+  }
 };

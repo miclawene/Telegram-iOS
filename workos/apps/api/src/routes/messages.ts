@@ -42,12 +42,10 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
     const source = await getChannelSource(parsed.data.channelId);
     if (!source) return reply.code(409).send({ error: "Channel has no Telegram source" });
 
-    const result = await workerClient.send(
-      source.accountId,
-      source.peerId,
-      parsed.data.text,
+    const result = await workerClient.send(source.accountId, source.peerId, parsed.data.text, {
       replyToMessageId,
-    );
+      topicId: source.topicId ?? undefined,
+    });
     if (!result.ok) {
       return reply.code(result.status === 503 ? 503 : 502).send({ error: "Could not reply" });
     }

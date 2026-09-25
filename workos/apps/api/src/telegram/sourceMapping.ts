@@ -24,6 +24,7 @@ export async function getChannelSource(
     .select({
       accountId: schema.telegramChatSources.telegramAccountId,
       peerId: schema.telegramChatSources.telegramChatId,
+      topicId: schema.channelSources.telegramTopicId,
     })
     .from(schema.channelSources)
     .innerJoin(
@@ -35,7 +36,12 @@ export async function getChannelSource(
 
   const row = rows[0];
   if (!row) return null;
-  return { type: "telegram", accountId: row.accountId, peerId: String(row.peerId) };
+  return {
+    type: "telegram",
+    accountId: row.accountId,
+    peerId: String(row.peerId),
+    topicId: row.topicId != null ? String(row.topicId) : null,
+  };
 }
 
 /** Reverse: channels mapped to an (accountId, peerId). Multi-account safe. */

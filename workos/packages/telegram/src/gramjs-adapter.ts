@@ -9,6 +9,7 @@ import type {
   TelegramChat,
   TelegramClientAdapter,
   TelegramMessage,
+  TelegramTopic,
   TelegramUpdate,
   TelegramUser,
 } from "./adapter.js";
@@ -137,8 +138,27 @@ export class GramJsAdapter implements TelegramClientAdapter {
           type: chatTypeOf(entity),
           title: d.title ?? "",
           username: "username" in entity ? (entity.username ?? null) : null,
+          isForum: entity instanceof Api.Channel ? Boolean(entity.forum) : false,
         };
       });
+  }
+
+  async getForumTopics(chatId: string): Promise<TelegramTopic[]> {
+    await this.ensureConnected();
+    const entity = await this.client.getInputEntity(chatId);
+    const res = (await this.client.invoke(
+      new Api.channels.GetForumTopics({
+        channel: entity,
+        offsetDate: 0,
+        offsetId: 0,
+        offsetTopic: 0,
+        limit: 100,
+      }),
+    )) as Api.messages.ForumTopics;
+
+    return res.topics
+      .filter((t): t is Api.ForumTopic => t instanceof Api.ForumTopic)
+      .map((t) => ({ id: String(t.id), title: t.title }));
   }
 
   async searchChats(query: string): Promise<TelegramChat[]> {
@@ -157,6 +177,7 @@ export class GramJsAdapter implements TelegramClientAdapter {
           type: chatTypeOf(chat),
           title: "title" in chat ? chat.title : "",
           username: "username" in chat ? (chat.username ?? null) : null,
+          isForum: chat instanceof Api.Channel ? Boolean(chat.forum) : false,
         });
       }
     }
@@ -182,15 +203,25 @@ export class GramJsAdapter implements TelegramClientAdapter {
     const messages = await this.client.getMessages(chatId, {
       limit: params.limit ?? 50,
       offsetId: params.beforeMessageId ? Number(params.beforeMessageId) : undefined,
+      // Scope to a single forum topic when requested.
+      replyTo: params.topicId ? Number(params.topicId) : undefined,
     });
     return messages
       .filter((m): m is Api.Message => m instanceof Api.Message)
       .map((m) => toMessage(chatId, m));
   }
 
-  async sendMessage(chatId: string, text: string): Promise<TelegramMessage> {
+  async sendMessage(
+    chatId: string,
+    text: string,
+    topicId?: string,
+  ): Promise<TelegramMessage> {
     await this.ensureConnected();
-    const sent = await this.client.sendMessage(chatId, { message: text });
+    const sent = await this.client.sendMessage(chatId, {
+      message: text,
+      // Posting into a forum topic is a reply to the topic's root message.
+      replyTo: topicId ? Number(topicId) : undefined,
+    });
     return toMessage(chatId, sent);
   }
 

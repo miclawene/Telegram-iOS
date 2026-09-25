@@ -220,6 +220,8 @@ export const channelSources = pgTable(
       .notNull()
       .references(() => telegramChatSources.id, { onDelete: "cascade" }),
     sourceType: channelSourceTypeEnum("source_type").notNull().default("telegram_chat"),
+    // Set when this channel maps to one forum topic of the chat source.
+    telegramTopicId: bigint("telegram_topic_id", { mode: "bigint" }),
     createdAt: timestamps.createdAt,
   },
   (t) => ({

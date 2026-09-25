@@ -6,6 +6,12 @@ export interface TelegramChat {
   type: "private" | "group" | "supergroup" | "channel";
   title: string;
   username?: string | null;
+  isForum?: boolean;
+}
+
+export interface TelegramTopic {
+  id: string;
+  title: string;
 }
 
 export interface TelegramUser {
@@ -40,6 +46,8 @@ export interface SignInParams {
 export interface GetMessagesParams {
   limit?: number;
   beforeMessageId?: string;
+  // Restrict to one forum topic of the peer.
+  topicId?: string;
 }
 
 /**
@@ -56,9 +64,15 @@ export interface TelegramClientAdapter {
   getChats(): Promise<TelegramChat[]>;
   /** Server-side search across all chats/contacts, not just the dialog list. */
   searchChats(query: string): Promise<TelegramChat[]>;
+  /** Topics of a forum supergroup. */
+  getForumTopics(chatId: string): Promise<TelegramTopic[]>;
   getMessages(chatId: string, params?: GetMessagesParams): Promise<TelegramMessage[]>;
 
-  sendMessage(chatId: string, text: string): Promise<TelegramMessage>;
+  sendMessage(
+    chatId: string,
+    text: string,
+    topicId?: string,
+  ): Promise<TelegramMessage>;
   sendReply(
     chatId: string,
     replyToMessageId: string,

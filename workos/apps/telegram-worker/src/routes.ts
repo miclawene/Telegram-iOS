@@ -54,13 +54,25 @@ export function controlRoutes(service: TelegramService): FastifyPluginAsync {
       return reply.send({ chats });
     });
 
+    // Forum topics
+    app.get("/accounts/:accountId/peers/:peerId/topics", async (req, reply) => {
+      const { accountId, peerId } = req.params as { accountId: string; peerId: string };
+      const topics = await service.getTopics(accountId, peerId);
+      return reply.send({ topics });
+    });
+
     // History
     app.get("/accounts/:accountId/peers/:peerId/messages", async (req, reply) => {
       const { accountId, peerId } = req.params as { accountId: string; peerId: string };
-      const { limit, beforeId } = req.query as { limit?: string; beforeId?: string };
+      const { limit, beforeId, topicId } = req.query as {
+        limit?: string;
+        beforeId?: string;
+        topicId?: string;
+      };
       const messages = await service.getMessages(accountId, peerId, {
         limit: limit ? Number(limit) : undefined,
         beforeMessageId: beforeId,
+        topicId,
       });
       return reply.send({ messages });
     });
@@ -68,9 +80,19 @@ export function controlRoutes(service: TelegramService): FastifyPluginAsync {
     // Send / reply
     app.post("/accounts/:accountId/peers/:peerId/messages", async (req, reply) => {
       const { accountId, peerId } = req.params as { accountId: string; peerId: string };
-      const body = (req.body ?? {}) as { text?: string; replyToMessageId?: string };
+      const body = (req.body ?? {}) as {
+        text?: string;
+        replyToMessageId?: string;
+        topicId?: string;
+      };
       if (!body.text?.trim()) return reply.code(400).send({ error: "text required" });
-      const message = await service.send(accountId, peerId, body.text, body.replyToMessageId);
+      const message = await service.send(
+        accountId,
+        peerId,
+        body.text,
+        body.replyToMessageId,
+        body.topicId,
+      );
       return reply.send({ message });
     });
 

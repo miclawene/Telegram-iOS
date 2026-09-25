@@ -106,6 +106,24 @@ export const api = {
       `/telegram/chats${query ? `?query=${encodeURIComponent(query)}` : ""}`,
     ),
 
+  // Forum topics of a supergroup (ТЗ §8)
+  topics: (peerId: string) =>
+    req<{ topics: { id: string; title: string }[] }>(
+      `/telegram/topics?peerId=${encodeURIComponent(peerId)}`,
+    ),
+
+  // Import a forum supergroup as a project (topic -> channel)
+  importForum: (input: {
+    workspaceId: string;
+    peerId: string;
+    title: string;
+    projectName?: string;
+  }) =>
+    req<{ projectId: string; channels: { id: string; name: string }[] }>(
+      "/telegram/import-forum",
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
   // Import: bind peer -> channel (ТЗ §7, §11)
   importChannel: (input: {
     workspaceId: string;
