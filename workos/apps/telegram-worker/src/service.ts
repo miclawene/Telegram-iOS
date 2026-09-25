@@ -64,17 +64,37 @@ export class TelegramService {
   // ── Conversation selector (ТЗ §8, §9) ─────────────────────────────────────
   async getChats(accountId: string, query?: string): Promise<TelegramConversation[]> {
     const adapter = this.requireAdapter(accountId);
-    const chats = await adapter.getChats();
-    const q = query?.trim().toLowerCase();
-    return chats
-      .filter((c) => !q || c.title.toLowerCase().includes(q) || (c.username ?? "").toLowerCase().includes(q))
-      .map((c) => ({
-        peerId: c.id,
-        accountId,
-        title: c.title,
-        username: c.username ?? null,
-        chatType: c.type,
-      }));
+    const q = query?.trim();
+    const dialogs = await adapter.getChats();
+
+    // Recent dialogs matched locally...
+    const ql = q?.toLowerCase();
+    const matched = dialogs.filter(
+      (c) =>
+        !ql ||
+        c.title.toLowerCase().includes(ql) ||
+        (c.username ?? "").toLowerCase().includes(ql),
+    );
+
+    // ...plus Telegram's global search, so chats beyond the recent list appear.
+    const combined = [...matched];
+    if (q) {
+      const seen = new Set(matched.map((c) => c.id));
+      for (const c of await adapter.searchChats(q)) {
+        if (!seen.has(c.id)) {
+          seen.add(c.id);
+          combined.push(c);
+        }
+      }
+    }
+
+    return combined.map((c) => ({
+      peerId: c.id,
+      accountId,
+      title: c.title,
+      username: c.username ?? null,
+      chatType: c.type,
+    }));
   }
 
   // ── History (load on open — ТЗ §13, §41) ──────────────────────────────────

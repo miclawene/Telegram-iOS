@@ -141,6 +141,39 @@ export class GramJsAdapter implements TelegramClientAdapter {
       });
   }
 
+  async searchChats(query: string): Promise<TelegramChat[]> {
+    await this.ensureConnected();
+    // Telegram's own search: finds chats/channels/users by name across the whole
+    // account, not just the recent dialogs.
+    const res = (await this.client.invoke(
+      new Api.contacts.Search({ q: query, limit: 50 }),
+    )) as Api.contacts.Found;
+
+    const out: TelegramChat[] = [];
+    for (const chat of res.chats) {
+      if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
+        out.push({
+          id: String(chat.id),
+          type: chatTypeOf(chat),
+          title: "title" in chat ? chat.title : "",
+          username: "username" in chat ? (chat.username ?? null) : null,
+        });
+      }
+    }
+    for (const user of res.users) {
+      if (user instanceof Api.User) {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        out.push({
+          id: String(user.id),
+          type: "private",
+          title: name || user.username || "",
+          username: user.username ?? null,
+        });
+      }
+    }
+    return out;
+  }
+
   async getMessages(
     chatId: string,
     params: GetMessagesParams = {},

@@ -54,6 +54,8 @@ export interface TelegramClientAdapter {
   signIn(params: SignInParams): Promise<TelegramUser>;
 
   getChats(): Promise<TelegramChat[]>;
+  /** Server-side search across all chats/contacts, not just the dialog list. */
+  searchChats(query: string): Promise<TelegramChat[]>;
   getMessages(chatId: string, params?: GetMessagesParams): Promise<TelegramMessage[]>;
 
   sendMessage(chatId: string, text: string): Promise<TelegramMessage>;
