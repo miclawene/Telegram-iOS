@@ -67,7 +67,14 @@ export class GramJsAdapter implements TelegramClientAdapter {
     this.emit({ kind: "connection.changed", status: "disconnected" });
   }
 
+  // A fresh login adapter is never connect()ed by the worker, so every entry
+  // point makes sure the MTProto connection is up first.
+  private async ensureConnected(): Promise<void> {
+    if (!this.client.connected) await this.connect();
+  }
+
   async requestLoginCode(phone: string): Promise<void> {
+    await this.ensureConnected();
     this.pendingPhone = phone;
     const result = await this.client.invoke(
       new Api.auth.SendCode({
@@ -82,6 +89,7 @@ export class GramJsAdapter implements TelegramClientAdapter {
   }
 
   async signIn(params: SignInParams): Promise<TelegramUser> {
+    await this.ensureConnected();
     if (!this.phoneCodeHash || !this.pendingPhone) {
       throw new Error("requestLoginCode must be called before signIn");
     }
@@ -118,6 +126,7 @@ export class GramJsAdapter implements TelegramClientAdapter {
   }
 
   async getChats(): Promise<TelegramChat[]> {
+    await this.ensureConnected();
     const dialogs = await this.client.getDialogs({ limit: 200 });
     return dialogs
       .filter((d) => d.entity)
@@ -136,6 +145,7 @@ export class GramJsAdapter implements TelegramClientAdapter {
     chatId: string,
     params: GetMessagesParams = {},
   ): Promise<TelegramMessage[]> {
+    await this.ensureConnected();
     const messages = await this.client.getMessages(chatId, {
       limit: params.limit ?? 50,
       offsetId: params.beforeMessageId ? Number(params.beforeMessageId) : undefined,
@@ -146,6 +156,7 @@ export class GramJsAdapter implements TelegramClientAdapter {
   }
 
   async sendMessage(chatId: string, text: string): Promise<TelegramMessage> {
+    await this.ensureConnected();
     const sent = await this.client.sendMessage(chatId, { message: text });
     return toMessage(chatId, sent);
   }
@@ -155,6 +166,7 @@ export class GramJsAdapter implements TelegramClientAdapter {
     replyToMessageId: string,
     text: string,
   ): Promise<TelegramMessage> {
+    await this.ensureConnected();
     const sent = await this.client.sendMessage(chatId, {
       message: text,
       replyTo: Number(replyToMessageId),

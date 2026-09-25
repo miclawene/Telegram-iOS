@@ -279,6 +279,10 @@ function friendly(e: unknown): string {
         return "Telegram service is unreachable.";
       case "Could not load Telegram conversations":
         return "Couldn't load your conversations.";
+      case "Could not send code":
+        return "Telegram didn't accept the request. Check the number (with country code) and try again.";
+      case "Sign-in failed":
+        return "Wrong or expired code. Request a new one.";
       case "Forbidden":
         return "You don't have permission to add channels here.";
       default:
