@@ -312,51 +312,67 @@ export const telegramRoutes: FastifyPluginAsync = async (app) => {
           .returning()
       )[0]!.id;
 
-    // One chat source for the whole supergroup.
-    const [chatSource] = await db
-      .insert(schema.telegramChatSources)
-      .values({
-        telegramAccountId: account.id,
-        telegramChatId: BigInt(input.peerId),
-        chatType: "supergroup",
-        title: input.title,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.telegramChatSources.telegramAccountId,
-          schema.telegramChatSources.telegramChatId,
-        ],
-        set: { title: input.title, updatedAt: new Date() },
-      })
-      .returning();
-
-    // One channel per topic, each scoped to its topic id.
-    const created: { id: string; name: string }[] = [];
-    for (const topic of topics) {
-      const [channel] = await db
-        .insert(schema.channels)
+    try {
+      // One chat source for the whole supergroup.
+      const [chatSource] = await db
+        .insert(schema.telegramChatSources)
         .values({
-          workspaceId: input.workspaceId,
-          projectId,
-          name: topic.title.replace(/^#/, ""),
-          slug: slugify(topic.title) + "-" + topic.id,
-          type: "telegram",
+          telegramAccountId: account.id,
+          telegramChatId: BigInt(input.peerId),
+          chatType: "supergroup",
+          title: input.title,
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.telegramChatSources.telegramAccountId,
+            schema.telegramChatSources.telegramChatId,
+          ],
+          set: { title: input.title, updatedAt: new Date() },
         })
         .returning();
-      await db.insert(schema.channelSources).values({
-        channelId: channel!.id,
-        telegramChatSourceId: chatSource!.id,
-        sourceType: "telegram_topic",
-        telegramTopicId: BigInt(topic.id),
-      });
-      created.push({ id: channel!.id, name: channel!.name });
-    }
 
-    logger.info(
-      { projectId, accountId: account.id, topics: created.length },
-      "Forum supergroup imported as project",
-    );
-    return reply.code(201).send({ projectId, channels: created });
+      // One channel per topic, each scoped to its topic id. Slug is derived
+      // from the topic id alone so non-latin titles can't collide or be empty.
+      const channelValues = topics.map((t) => ({
+        workspaceId: input.workspaceId,
+        projectId: projectId!,
+        name: t.title.replace(/^#/, "").slice(0, 120),
+        slug: `t-${t.id}`,
+        type: "telegram" as const,
+      }));
+      const createdChannels = await db
+        .insert(schema.channels)
+        .values(channelValues)
+        .onConflictDoNothing()
+        .returning();
+
+      // Recover each channel's topic id from its slug (t-<topicId>), so this
+      // stays correct even when some channels are skipped on re-import.
+      const sourceValues = createdChannels.map((ch) => ({
+        channelId: ch.id,
+        telegramChatSourceId: chatSource!.id,
+        sourceType: "telegram_topic" as const,
+        telegramTopicId: BigInt(ch.slug.replace(/^t-/, "")),
+      }));
+      if (sourceValues.length > 0) {
+        await db.insert(schema.channelSources).values(sourceValues);
+      }
+
+      logger.info(
+        { projectId, accountId: account.id, topics: createdChannels.length },
+        "Forum supergroup imported as project",
+      );
+      return reply.code(201).send({
+        projectId,
+        channels: createdChannels.map((c) => ({ id: c.id, name: c.name })),
+      });
+    } catch (err) {
+      logger.error({ err, projectId }, "Forum import failed");
+      return reply.code(500).send({
+        error: "import_failed",
+        detail: err instanceof Error ? err.message : "unknown",
+      });
+    }
   });
 
   // Resolve the user's connected Telegram account (or null).

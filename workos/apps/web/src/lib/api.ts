@@ -21,8 +21,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
+    public detail?: string,
   ) {
-    super(code);
+    super(detail ? `${code}: ${detail}` : code);
   }
 }
 
@@ -34,7 +35,12 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
-    throw new ApiError(res.status, String(body.error ?? "request_failed"));
+    const detail = body.detail ?? body.message;
+    throw new ApiError(
+      res.status,
+      String(body.error ?? "request_failed"),
+      detail ? String(detail) : undefined,
+    );
   }
   return body as T;
 }

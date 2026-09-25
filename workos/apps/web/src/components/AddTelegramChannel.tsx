@@ -346,8 +346,10 @@ function friendly(e: unknown): string {
         return "Wrong or expired code. Request a new one.";
       case "Forbidden":
         return "You don't have permission to add channels here.";
+      case "import_failed":
+        return `Import failed: ${e.detail ?? "unknown error"}`;
       default:
-        return "Something went wrong. Please try again.";
+        return e.detail ? `Something went wrong: ${e.detail}` : "Something went wrong. Please try again.";
     }
   }
   return "Network error. Check your connection.";
