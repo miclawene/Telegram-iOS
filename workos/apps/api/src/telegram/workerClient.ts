@@ -13,6 +13,13 @@ interface WorkerMessage {
   text: string | null;
   date: string;
   replyToMessageId: string | null;
+  media?: {
+    kind: "photo" | "video" | "document" | "audio" | "other";
+    mimeType: string | null;
+    fileName: string | null;
+    size: number | null;
+    hasThumb: boolean;
+  } | null;
 }
 
 async function workerFetch<T>(
@@ -59,6 +66,33 @@ export const workerClient = {
     return workerFetch<{ chats: TelegramConversation[] }>(
       `/accounts/${accountId}/chats${qs}`,
     );
+  },
+
+  async getMedia(
+    accountId: string,
+    peerId: string,
+    messageId: string,
+    thumb: boolean,
+  ): Promise<
+    | { ok: true; buffer: Buffer; contentType: string; disposition: string | null }
+    | { ok: false; status: number }
+  > {
+    try {
+      const res = await fetch(
+        `${env.WORKER_URL}/accounts/${accountId}/peers/${peerId}/messages/${messageId}/media${thumb ? "?thumb=1" : ""}`,
+        { headers: { "x-internal-secret": env.API_INTERNAL_SECRET } },
+      );
+      if (!res.ok) return { ok: false, status: res.status };
+      const buffer = Buffer.from(await res.arrayBuffer());
+      return {
+        ok: true,
+        buffer,
+        contentType: res.headers.get("content-type") ?? "application/octet-stream",
+        disposition: res.headers.get("content-disposition"),
+      };
+    } catch {
+      return { ok: false, status: 503 };
+    }
   },
 
   getTopics(accountId: string, peerId: string) {

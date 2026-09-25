@@ -104,6 +104,17 @@ export class TelegramService {
     return adapter.getForumTopics(peerId);
   }
 
+  // Media bytes of a message (or its thumbnail).
+  async downloadMedia(
+    accountId: string,
+    peerId: string,
+    messageId: string,
+    opts: { thumb?: boolean },
+  ) {
+    const adapter = this.requireAdapter(accountId);
+    return adapter.downloadMedia(peerId, messageId, opts);
+  }
+
   // ── History (load on open — ТЗ §13, §41) ──────────────────────────────────
   async getMessages(
     accountId: string,

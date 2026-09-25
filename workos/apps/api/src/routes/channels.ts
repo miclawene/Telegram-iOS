@@ -117,6 +117,30 @@ export const channelRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  // GET /channels/:id/messages/:messageId/media — stream a message's media
+  // (or ?thumb=1 for a preview). Bytes flow worker -> api -> browser; nothing
+  // is stored (ТЗ §42). Cached at the edge since media is immutable.
+  app.get("/channels/:id/messages/:messageId/media", async (req, reply) => {
+    const { id, messageId } = req.params as { id: string; messageId: string };
+    const thumb = (req.query as { thumb?: string }).thumb === "1";
+
+    const workspaceId = await channelWorkspace(id);
+    if (!workspaceId) return reply.code(404).send({ error: "Not found" });
+    const role = await getMembership(req.user!.id, workspaceId);
+    if (!role) return reply.code(403).send({ error: "Forbidden" });
+
+    const source = await getChannelSource(id);
+    if (!source) return reply.code(404).send({ error: "No source" });
+
+    const media = await workerClient.getMedia(source.accountId, source.peerId, messageId, thumb);
+    if (!media.ok) return reply.code(media.status === 404 ? 404 : 502).send({ error: "No media" });
+
+    reply.header("content-type", media.contentType);
+    reply.header("cache-control", "private, max-age=86400");
+    if (media.disposition) reply.header("content-disposition", media.disposition);
+    return reply.send(media.buffer);
+  });
+
   // POST /channels/:id/messages — send (or reply) via Telegram (ТЗ §16, §17).
   const sendBody = z.object({
     text: z.string().min(1).max(4096),

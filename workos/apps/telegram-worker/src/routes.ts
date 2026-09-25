@@ -61,6 +61,25 @@ export function controlRoutes(service: TelegramService): FastifyPluginAsync {
       return reply.send({ topics });
     });
 
+    // Media bytes (full or thumbnail)
+    app.get("/accounts/:accountId/peers/:peerId/messages/:messageId/media", async (req, reply) => {
+      const { accountId, peerId, messageId } = req.params as {
+        accountId: string;
+        peerId: string;
+        messageId: string;
+      };
+      const { thumb } = req.query as { thumb?: string };
+      const media = await service.downloadMedia(accountId, peerId, messageId, {
+        thumb: thumb === "1",
+      });
+      if (!media) return reply.code(404).send({ error: "no media" });
+      reply.header("content-type", media.mimeType);
+      if (media.fileName) {
+        reply.header("content-disposition", `inline; filename="${encodeURIComponent(media.fileName)}"`);
+      }
+      return reply.send(media.buffer);
+    });
+
     // History
     app.get("/accounts/:accountId/peers/:peerId/messages", async (req, reply) => {
       const { accountId, peerId } = req.params as { accountId: string; peerId: string };

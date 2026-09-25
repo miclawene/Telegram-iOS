@@ -52,6 +52,14 @@ export interface TelegramAccountDTO {
   status: "pending" | "connected" | "disconnected" | "error";
 }
 
+export interface MediaInfoDTO {
+  kind: "photo" | "video" | "document" | "audio" | "other";
+  mimeType: string | null;
+  fileName: string | null;
+  size: number | null;
+  hasThumb: boolean;
+}
+
 export interface HistoryMessageDTO {
   id: string;
   telegramMessageId: string;
@@ -59,6 +67,12 @@ export interface HistoryMessageDTO {
   replyToMessageId: string | null;
   date: string;
   text: string | null;
+  media?: MediaInfoDTO | null;
+}
+
+// URL for a message's media, proxied same-origin through /api.
+export function mediaUrl(channelId: string, messageId: string, thumb = false): string {
+  return `/api/channels/${channelId}/messages/${messageId}/media${thumb ? "?thumb=1" : ""}`;
 }
 
 export const api = {

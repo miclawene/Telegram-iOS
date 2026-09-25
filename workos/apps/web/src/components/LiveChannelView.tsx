@@ -8,6 +8,7 @@ import type { ChannelSourceState } from "@workos/types";
 import { api, type HistoryMessageDTO } from "@/lib/api";
 import { useUIStore } from "@/lib/store";
 import { Avatar } from "./Avatar";
+import { MessageMedia } from "./MessageMedia";
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -71,7 +72,7 @@ export function LiveChannelView({ channelId }: { channelId: string }) {
           <p className="text-sm text-muted">No messages yet.</p>
         )}
         {messages.map((m) => (
-          <LiveRow key={m.id} message={m} onReply={() => openThread(m.id)} />
+          <LiveRow key={m.id} channelId={channelId} message={m} onReply={() => openThread(m.id)} />
         ))}
       </div>
 
@@ -104,9 +105,11 @@ export function LiveChannelView({ channelId }: { channelId: string }) {
 }
 
 function LiveRow({
+  channelId,
   message,
   onReply,
 }: {
+  channelId: string;
   message: HistoryMessageDTO;
   onReply: () => void;
 }) {
@@ -120,7 +123,12 @@ function LiveRow({
           </span>
           <span className="text-xs text-muted">{timeOf(message.date)}</span>
         </div>
-        <p className="whitespace-pre-wrap break-words text-sm">{message.text}</p>
+        {message.text && (
+          <p className="whitespace-pre-wrap break-words text-sm">{message.text}</p>
+        )}
+        {message.media && (
+          <MessageMedia channelId={channelId} messageId={message.id} media={message.media} />
+        )}
         <button
           onClick={onReply}
           className="text-xs text-muted opacity-0 hover:text-accent group-hover:opacity-100"

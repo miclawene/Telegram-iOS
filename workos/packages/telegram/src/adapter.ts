@@ -21,6 +21,14 @@ export interface TelegramUser {
   username?: string | null;
 }
 
+export interface TelegramMediaInfo {
+  kind: "photo" | "video" | "document" | "audio" | "other";
+  mimeType: string | null;
+  fileName: string | null;
+  size: number | null;
+  hasThumb: boolean;
+}
+
 export interface TelegramMessage {
   id: string;
   chatId: string;
@@ -28,7 +36,14 @@ export interface TelegramMessage {
   text: string | null;
   date: string; // ISO
   replyToMessageId: string | null;
+  media?: TelegramMediaInfo | null;
   entitiesJson?: unknown;
+}
+
+export interface TelegramMediaDownload {
+  buffer: Buffer;
+  mimeType: string;
+  fileName: string | null;
 }
 
 export type TelegramUpdate =
@@ -67,6 +82,12 @@ export interface TelegramClientAdapter {
   /** Topics of a forum supergroup. */
   getForumTopics(chatId: string): Promise<TelegramTopic[]>;
   getMessages(chatId: string, params?: GetMessagesParams): Promise<TelegramMessage[]>;
+  /** Download a message's media (or its thumbnail) as bytes. */
+  downloadMedia(
+    chatId: string,
+    messageId: string,
+    opts?: { thumb?: boolean },
+  ): Promise<TelegramMediaDownload | null>;
 
   sendMessage(
     chatId: string,

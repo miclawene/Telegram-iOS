@@ -6,6 +6,7 @@ import { useState } from "react";
 import { api, type HistoryMessageDTO } from "@/lib/api";
 import { useUIStore } from "@/lib/store";
 import { Avatar } from "./Avatar";
+import { MessageMedia } from "./MessageMedia";
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleString([], {
@@ -61,7 +62,7 @@ export function LiveThreadPanel({ channelId }: { channelId: string }) {
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {root ? (
-          <ThreadMessage message={root} size={36} border />
+          <ThreadMessage channelId={channelId} message={root} size={36} border />
         ) : (
           <p className="mb-4 border-b border-border pb-4 text-sm text-muted">
             Original message isn&apos;t loaded.
@@ -71,7 +72,7 @@ export function LiveThreadPanel({ channelId }: { channelId: string }) {
         {replies.length === 0 ? (
           <p className="text-sm text-muted">No replies yet.</p>
         ) : (
-          replies.map((r) => <ThreadMessage key={r.id} message={r} size={28} />)
+          replies.map((r) => <ThreadMessage key={r.id} channelId={channelId} message={r} size={28} />)
         )}
       </div>
 
@@ -103,10 +104,12 @@ export function LiveThreadPanel({ channelId }: { channelId: string }) {
 }
 
 function ThreadMessage({
+  channelId,
   message,
   size,
   border,
 }: {
+  channelId: string;
   message: HistoryMessageDTO;
   size: number;
   border?: boolean;
@@ -121,7 +124,12 @@ function ThreadMessage({
           </span>
           <span className="text-xs text-muted">{timeOf(message.date)}</span>
         </div>
-        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm">{message.text}</p>
+        {message.text && (
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm">{message.text}</p>
+        )}
+        {message.media && (
+          <MessageMedia channelId={channelId} messageId={message.id} media={message.media} />
+        )}
       </div>
     </div>
   );

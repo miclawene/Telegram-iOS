@@ -8,6 +8,7 @@ import type {
   TelegramAdapterConfig,
   TelegramChat,
   TelegramClientAdapter,
+  TelegramMediaDownload,
   TelegramMessage,
   TelegramTopic,
   TelegramUpdate,
@@ -30,6 +31,39 @@ function chatTypeOf(entity: Api.TypeChat | Api.TypeUser): TelegramChat["type"] {
   return "group";
 }
 
+function mediaInfo(m: Api.Message): TelegramMessage["media"] {
+  const media = m.media;
+  if (!media) return null;
+
+  if (media instanceof Api.MessageMediaPhoto) {
+    return { kind: "photo", mimeType: "image/jpeg", fileName: null, size: null, hasThumb: true };
+  }
+  if (media instanceof Api.MessageMediaDocument) {
+    const doc = media.document;
+    if (!(doc instanceof Api.Document)) {
+      return { kind: "other", mimeType: null, fileName: null, size: null, hasThumb: false };
+    }
+    const mime = doc.mimeType ?? null;
+    const nameAttr = doc.attributes.find(
+      (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename,
+    );
+    const isVideo =
+      doc.attributes.some((a) => a instanceof Api.DocumentAttributeVideo) ||
+      (mime?.startsWith("video/") ?? false);
+    const isAudio =
+      doc.attributes.some((a) => a instanceof Api.DocumentAttributeAudio) ||
+      (mime?.startsWith("audio/") ?? false);
+    return {
+      kind: isVideo ? "video" : isAudio ? "audio" : "document",
+      mimeType: mime,
+      fileName: nameAttr?.fileName ?? null,
+      size: doc.size ? Number(doc.size) : null,
+      hasThumb: (doc.thumbs?.length ?? 0) > 0 || isVideo,
+    };
+  }
+  return { kind: "other", mimeType: null, fileName: null, size: null, hasThumb: false };
+}
+
 function toMessage(chatId: string, m: Api.Message): TelegramMessage {
   return {
     id: String(m.id),
@@ -40,6 +74,7 @@ function toMessage(chatId: string, m: Api.Message): TelegramMessage {
     replyToMessageId: m.replyTo?.replyToMsgId
       ? String(m.replyTo.replyToMsgId)
       : null,
+    media: mediaInfo(m),
   };
 }
 
@@ -209,6 +244,30 @@ export class GramJsAdapter implements TelegramClientAdapter {
     return messages
       .filter((m): m is Api.Message => m instanceof Api.Message)
       .map((m) => toMessage(chatId, m));
+  }
+
+  async downloadMedia(
+    chatId: string,
+    messageId: string,
+    opts: { thumb?: boolean } = {},
+  ): Promise<TelegramMediaDownload | null> {
+    await this.ensureConnected();
+    const messages = await this.client.getMessages(chatId, { ids: [Number(messageId)] });
+    const msg = messages[0];
+    if (!(msg instanceof Api.Message) || !msg.media) return null;
+
+    const info = mediaInfo(msg);
+    const buffer = (await this.client.downloadMedia(msg, {
+      // thumb: largest available thumbnail — cheap preview for photos/videos.
+      thumb: opts.thumb ? -1 : undefined,
+    })) as Buffer | undefined;
+    if (!buffer) return null;
+
+    const mimeType =
+      opts.thumb || info?.kind === "photo"
+        ? "image/jpeg"
+        : (info?.mimeType ?? "application/octet-stream");
+    return { buffer, mimeType, fileName: info?.fileName ?? null };
   }
 
   async sendMessage(

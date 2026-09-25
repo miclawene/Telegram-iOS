@@ -11,6 +11,13 @@ export interface HistoryMessage {
   replyToMessageId: string | null;
   date: string;
   text: string | null;
+  media?: {
+    kind: "photo" | "video" | "document" | "audio" | "other";
+    mimeType: string | null;
+    fileName: string | null;
+    size: number | null;
+    hasThumb: boolean;
+  } | null;
 }
 
 export interface ChannelHistory {
@@ -55,6 +62,7 @@ export async function getChannelHistory(
       replyToMessageId: m.replyToMessageId,
       date: m.date,
       text: m.text,
+      media: m.media ?? null,
     }))
     .sort((a, b) => +new Date(a.date) - +new Date(b.date));
 
