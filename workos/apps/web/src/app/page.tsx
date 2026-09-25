@@ -5,14 +5,18 @@ import { WorkspaceRail } from "@/components/WorkspaceRail";
 import { ProjectPane } from "@/components/ProjectPane";
 import { ChannelView } from "@/components/ChannelView";
 import { ThreadPanel } from "@/components/ThreadPanel";
-import { channel } from "@/lib/demo";
+import { LiveThreadPanel } from "@/components/LiveThreadPanel";
+import { isDemoChannel } from "@/components/LiveChannelView";
+import { useWorkspaceData } from "@/lib/live";
 
 export default function HomePage() {
   const mobileView = useUIStore((s) => s.mobileView);
   const setMobileView = useUIStore((s) => s.setMobileView);
   const activeChannelId = useUIStore((s) => s.activeChannelId);
   const threadMessageId = useUIStore((s) => s.threadMessageId);
-  const ch = activeChannelId ? channel(activeChannelId) : undefined;
+  const data = useWorkspaceData();
+  const ch = activeChannelId ? data.channel(activeChannelId) : undefined;
+  const isLive = !!activeChannelId && !isDemoChannel(activeChannelId);
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -21,7 +25,8 @@ export default function HomePage() {
         <WorkspaceRail />
         <ProjectPane />
         <ChannelView />
-        {threadMessageId && <ThreadPanel />}
+        {threadMessageId &&
+          (isLive ? <LiveThreadPanel channelId={activeChannelId!} /> : <ThreadPanel />)}
       </div>
 
       {/* ── Mobile: single-column stack (ТЗ §15) ── */}
