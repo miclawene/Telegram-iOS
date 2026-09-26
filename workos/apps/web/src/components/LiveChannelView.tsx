@@ -7,6 +7,7 @@ import type { ChannelSourceState } from "@workos/types";
 
 import { api, type HistoryMessageDTO } from "@/lib/api";
 import { useUIStore } from "@/lib/store";
+import { useRefreshWorkspace } from "@/lib/live";
 import { Avatar } from "./Avatar";
 import { MessageMedia } from "./MessageMedia";
 
@@ -60,7 +61,7 @@ export function LiveChannelView({ channelId }: { channelId: string }) {
 
   const state: ChannelSourceState = data?.state ?? "no_source";
   if (state !== "available") {
-    return <SourceStateNote state={state} />;
+    return <SourceStateNote state={state} channelId={channelId} onReconnect={() => void refetch()} />;
   }
 
   const messages = data?.messages ?? [];
@@ -141,7 +142,25 @@ function LiveRow({
 }
 
 // ТЗ §22: unavailable states never crash; offer recover actions.
-function SourceStateNote({ state }: { state: ChannelSourceState }) {
+function SourceStateNote({
+  state,
+  channelId,
+  onReconnect,
+}: {
+  state: ChannelSourceState;
+  channelId: string;
+  onReconnect: () => void;
+}) {
+  const refresh = useRefreshWorkspace();
+  const selectChannel = useUIStore((s) => s.selectChannel);
+  const del = useMutation({
+    mutationFn: () => api.deleteChannel(channelId),
+    onSuccess: () => {
+      selectChannel(null);
+      refresh();
+    },
+  });
+
   const copy: Record<ChannelSourceState, { title: string; subtitle: string }> = {
     available: { title: "", subtitle: "" },
     no_source: {
@@ -172,13 +191,23 @@ function SourceStateNote({ state }: { state: ChannelSourceState }) {
         <p className="text-lg font-medium">{c.title}</p>
         <p className="mt-1 text-sm text-muted">{c.subtitle}</p>
         <div className="mt-4 flex justify-center gap-2">
-          <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface-2">
+          <button
+            onClick={onReconnect}
+            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface-2"
+          >
             Reconnect
           </button>
-          <button className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface-2">
-            Change source
+          <button
+            onClick={() => del.mutate()}
+            disabled={del.isPending}
+            className="rounded-md border border-border px-3 py-1.5 text-sm text-red-400 hover:bg-surface-2 disabled:opacity-50"
+          >
+            {del.isPending ? "Deleting…" : "Delete channel"}
           </button>
         </div>
+        <p className="mt-2 text-xs text-muted">
+          Deleting removes this Work channel only — the Telegram chat is untouched.
+        </p>
       </div>
     </section>
   );

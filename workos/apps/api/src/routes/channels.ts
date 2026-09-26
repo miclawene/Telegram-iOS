@@ -96,6 +96,21 @@ export const channelRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ channel });
   });
 
+  // DELETE /channels/:id — removes the Work channel and its source mapping.
+  // Never touches the Telegram chat itself (ТЗ §23, §24). channel_sources
+  // cascade via FK.
+  app.delete("/channels/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const workspaceId = await channelWorkspace(id);
+    if (!workspaceId) return reply.code(404).send({ error: "Not found" });
+    const role = await getMembership(req.user!.id, workspaceId);
+    if (!role || !roleAtLeast(role, "member")) {
+      return reply.code(403).send({ error: "Forbidden" });
+    }
+    await db.delete(schema.channels).where(eq(schema.channels.id, id));
+    return reply.send({ ok: true });
+  });
+
   // GET /channels/:id/messages
   // Phase 2: loads live Telegram history through the worker on open (ТЗ §13),
   // and returns a source state so the UI can render unavailable states (ТЗ §22).

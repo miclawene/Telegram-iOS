@@ -101,6 +101,8 @@ export const api = {
     req<{ projects: Project[] }>(`/projects?workspaceId=${workspaceId}`),
   channels: (workspaceId: string) =>
     req<{ channels: Channel[] }>(`/channels?workspaceId=${workspaceId}`),
+  deleteChannel: (channelId: string) =>
+    req<{ ok: boolean }>(`/channels/${channelId}`, { method: "DELETE" }),
 
   // Telegram auth (ТЗ §7, §12)
   telegramAccount: () => req<{ account: TelegramAccountDTO | null }>("/telegram/account"),
