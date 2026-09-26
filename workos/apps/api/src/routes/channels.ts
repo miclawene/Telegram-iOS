@@ -137,7 +137,27 @@ export const channelRoutes: FastifyPluginAsync = async (app) => {
 
     reply.header("content-type", media.contentType);
     reply.header("cache-control", "private, max-age=86400");
+    reply.header("accept-ranges", "bytes");
     if (media.disposition) reply.header("content-disposition", media.disposition);
+
+    // Honor a Range request so inline <video>/<audio> can seek.
+    const range = req.headers.range;
+    const total = media.buffer.length;
+    const m = range ? /^bytes=(\d*)-(\d*)$/.exec(range) : null;
+    if (m) {
+      const start = m[1] ? Number(m[1]) : 0;
+      const end = m[2] ? Math.min(Number(m[2]), total - 1) : total - 1;
+      if (start > end || start >= total) {
+        reply.header("content-range", `bytes */${total}`);
+        return reply.code(416).send();
+      }
+      reply.code(206);
+      reply.header("content-range", `bytes ${start}-${end}/${total}`);
+      reply.header("content-length", String(end - start + 1));
+      return reply.send(media.buffer.subarray(start, end + 1));
+    }
+
+    reply.header("content-length", String(total));
     return reply.send(media.buffer);
   });
 

@@ -16,8 +16,9 @@ function humanSize(bytes: number | null): string {
   return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
-// Renders a message attachment: photos/video thumbnails inline (click to open
-// full), files as a download chip. Bytes are proxied through the backend.
+// Renders a message attachment inline: images as images, video/audio with a
+// player, and only genuine files (pdf, docx, …) as a download chip. Bytes are
+// proxied through the backend and streamed with range support for seeking.
 export function MessageMedia({
   channelId,
   messageId,
@@ -31,30 +32,51 @@ export function MessageMedia({
   const full = mediaUrl(channelId, messageId);
   const thumb = mediaUrl(channelId, messageId, true);
 
-  if ((media.kind === "photo" || media.kind === "video") && media.hasThumb && !failed) {
+  const isImage = media.kind === "photo" || (media.mimeType?.startsWith("image/") ?? false);
+  const isVideo = media.kind === "video" || (media.mimeType?.startsWith("video/") ?? false);
+  const isAudio = media.kind === "audio" || (media.mimeType?.startsWith("audio/") ?? false);
+
+  // ── Image: show it inline; click opens the full-resolution original. ──
+  if (isImage && !failed) {
     return (
       <a href={full} target="_blank" rel="noreferrer" className="mt-1 block w-fit">
-        <span className="relative block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumb}
-            alt={media.fileName ?? media.kind}
-            onError={() => setFailed(true)}
-            className="max-h-64 max-w-[280px] rounded-lg border border-border object-cover"
-          />
-          {media.kind === "video" && (
-            <span className="absolute inset-0 flex items-center justify-center">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white">
-                ▶
-              </span>
-            </span>
-          )}
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={media.kind === "photo" ? thumb : full}
+          alt={media.fileName ?? "image"}
+          onError={() => setFailed(true)}
+          className="max-h-80 max-w-[320px] rounded-lg border border-border object-cover"
+        />
       </a>
     );
   }
 
-  const icon = media.kind === "video" ? "🎬" : media.kind === "audio" ? "🎵" : "📎";
+  // ── Video: inline player. ──
+  if (isVideo && !failed) {
+    return (
+      <video
+        controls
+        preload="metadata"
+        poster={media.hasThumb ? thumb : undefined}
+        onError={() => setFailed(true)}
+        className="mt-1 max-h-80 max-w-[320px] rounded-lg border border-border"
+      >
+        <source src={full} type={media.mimeType ?? "video/mp4"} />
+      </video>
+    );
+  }
+
+  // ── Audio: inline player. ──
+  if (isAudio && !failed) {
+    return (
+      <audio controls preload="metadata" onError={() => setFailed(true)} className="mt-1 w-[280px]">
+        <source src={full} type={media.mimeType ?? "audio/mpeg"} />
+      </audio>
+    );
+  }
+
+  // ── Everything else (or a failed inline render): a download chip. ──
+  const icon = isVideo ? "🎬" : isAudio ? "🎵" : "📎";
   return (
     <a
       href={full}
